@@ -1,0 +1,51 @@
+name: CI
+
+# L0 static gate for a dbt + shell + python code repo (testing.md tier-D/L0). No image is built
+# here (the gitops CronJobs git-clone this repo); L2+ runs against the live analytics DB in-cluster.
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linters
+        run: pip install --quiet ruff yamllint "dbt-postgres==1.9.*"
+
+      - name: ruff (Python provisioner)
+        run: ruff check metabase/
+
+      - name: yamllint (dbt yml)
+        run: yamllint -d relaxed dbt/
+
+      - name: shellcheck (ingest script)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          shellcheck ingest/ingest_policy.sh
+
+      - name: dbt parse (validate project — offline, no DB)
+        working-directory: dbt
+        env:
+          # dummy values so env_var() resolves; dbt parse validates refs/macros without connecting
+          ANALYTICS_PG_HOST: localhost
+          ANALYTICS_PG_PORT: "5432"
+          ANALYTICS_PG_USER: ci
+          ANALYTICS_PG_PASSWORD: ci
+          ANALYTICS_PG_DB: analytics
+          DBT_PROFILES_DIR: .
+        run: dbt deps && dbt parse

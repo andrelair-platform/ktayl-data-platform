@@ -1,0 +1,11 @@
+# The Metabase provisioner is a compact, single-purpose config script (not library code):
+# terse one-line imports/statements are intentional for a scannable top-to-bottom procedure.
+# Keep the real correctness lints (F, E9, undefined names) but allow the compact style.
+line-length = 200
+
+[lint]
+ignore = [
+  "E401", # multiple imports on one line
+  "E701", # multiple statements on one line (colon)
+  "E702", # multiple statements on one line (semicolon)
+]

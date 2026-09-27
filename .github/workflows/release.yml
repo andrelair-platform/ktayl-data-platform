@@ -1,0 +1,23 @@
+name: Release
+
+# release-please only — this is a code repo whose runtime is git-cloned by the gitops CronJobs
+# (no container image is built here), so there is no dual-tag/ghcr step (cf. ktayl-policy-service).
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        id: release
+        with:
+          token:         ${{ secrets.GITHUB_TOKEN }}
+          config-file:   release-please-config.json
+          manifest-file: .release-please-manifest.json
