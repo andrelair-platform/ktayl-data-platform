@@ -1,5 +1,10 @@
--- Cleaned premiums. amount is BIGINT minor units (assumed cents — CONFIRM with Policy domain);
--- exposed both as _minor and _eur. annualised = amount x cadence multiplier.
+-- Cleaned premiums. amount is BIGINT eurocents — CONFIRMED against the source domain model
+-- (ktayl-policy-service internal/domain/premium.go: `Amount int64 // eurocents`); exposed as _minor + _eur.
+-- annualised = amount x cadence multiplier. OPEN (DP-007): this treats each premium row as a *recurring
+-- schedule* at its frequency. If the domain instead stores one row *per installment* (the table has
+-- per-row due_date/paid_at and the service has no auto-scheduler → caller-determined), the correct annual
+-- GWP is sum(amount) within a term, and x-multiplier over-counts. Keep GWP labelled a *proxy* until the
+-- Policy domain fixes the row cardinality. See issue #7.
 with src as (
     select * from {{ source('policy_raw', 'premiums') }}
 )

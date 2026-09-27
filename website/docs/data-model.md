@@ -41,17 +41,22 @@ contract over those fields, enforced by dbt tests:
 | `total_insured_amount_minor` / `total_insured_amount_eur` | **TIV** — seeds P1/P3 (exposure / accumulation) |
 | `coverage_count` | count of coverage rows |
 
-### Money units
+### Money units — confirmed
 
-Money source columns are `BIGINT` **minor units** (cents). The `*_eur` columns are the minor-unit values
-divided by 100 and rounded to 2 decimals.
+Money source columns are `BIGINT` **eurocents** — **confirmed** (DP-007) against the source domain model
+(`ktayl-policy-service` `internal/domain/premium.go` and `coverage.go`, where `Amount`, `InsuredAmount`
+and `Deductible` are `int64 // eurocents`). The `*_eur` columns are the minor-unit values divided by 100
+and rounded to 2 decimals.
 
-### GWP is a proxy
+### GWP is still a proxy — annualisation cadence
 
-`annualised_premium_eur` is the sum of installment amounts multiplied by a cadence multiplier, divided by
-100. This assumes the `premiums` rows are **installments** (annualise = amount × cadence) and that the
-amounts are in cents. Both assumptions are **unconfirmed** with the Policy domain, so the figure is a
-**proxy** — pending confirmation (tracked as DP-007) before it is treated as authoritative GWP.
+`annualised_premium_eur` is the sum of premium amounts multiplied by a cadence multiplier
+(monthly ×12, quarterly ×4, annual ×1), divided by 100. This treats each `premiums` row as a **recurring
+schedule** at its `frequency`. The `premiums` table, however, carries a per-row `due_date`/`paid_at` and
+the service has **no auto-scheduler** (rows are caller-created), so it could equally represent **individual
+installments** — in which case the correct annual GWP is `sum(amount)` within a term and the ×multiplier
+would over-count. The **money units are confirmed**; only this **row-cardinality** decision remains, so
+`annualised_premium_eur` stays labelled a **proxy** (tracked as DP-007) until the Policy domain fixes it.
 
 ## dbt schema naming
 

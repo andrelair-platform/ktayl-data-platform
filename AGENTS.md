@@ -23,8 +23,12 @@ The code is the context; this holds only what the code can't cheaply say. See or
 ## Observed pitfalls
 - dbt schema concatenation (fixed via the macro above) — don't remove it or marts move to `business_business`.
 - CNPG bootstrap volume can transiently fault on a node → cordon + recreate on a clean node (deployment side).
-- Money columns are BIGINT **minor units** (÷100 → EUR); premium annualisation assumes installments —
-  both are **unconfirmed** with the Policy domain, so the GWP figure is a *proxy* until confirmed.
+- Money columns are BIGINT **eurocents** (÷100 → EUR) — **CONFIRMED** (DP-007) against the source domain
+  model (`ktayl-policy-service` `internal/domain/{premium,coverage}.go`: `int64 // eurocents`). The one
+  still-open item: **premium annualisation cardinality** — the mart treats each premium row as a recurring
+  *schedule* (`amount × frequency`); if the domain stores one row *per installment* instead, that
+  over-counts. The service has no auto-scheduler (caller-determined), so GWP stays a labelled **proxy**
+  until the Policy domain fixes the cardinality. See issue #7.
 
 ## Doctrine
 Thin vertical slice: one live source → just-enough medallion → one data product. Do NOT build a generic
