@@ -127,13 +127,18 @@ staging in `curated`. Safe because this is a single-target, single-owner analyti
 **Problem:** presenting a derived metric as authoritative when its underlying semantics are unconfirmed
 misleads consumers.
 
-**Pattern:** **document the proxy, and narrow it as facts are confirmed.** GWP (`annualised_premium_eur`)
-is labelled a **proxy**. Its money units are now **confirmed** eurocents (DP-007, verified against the
-`ktayl-policy-service` domain model), so ÷100 → EUR is authoritative. What remains open is the
-**annualisation cadence**: the mart treats each premium row as a recurring schedule (`amount × cadence`);
-if rows are individual installments it over-counts. The figure stays a proxy pending that one
-row-cardinality decision by the Policy domain (tracked as DP-007) — a proxy shrinks toward authoritative
-as each assumption is discharged, rather than staying a blanket disclaimer.
+**Pattern:** **document the proxy, then discharge each assumption — by confirmation or by a guarded
+contract.** GWP (`annualised_premium_eur`) started as a blanket proxy; DP-007 discharged both assumptions:
+- **money units** — *confirmed* eurocents (verified against the `ktayl-policy-service` domain model), so
+  ÷100 → EUR is authoritative;
+- **annualisation cadence** — *resolved with a guarded interim contract*: "one premium row per policy = the
+  recurring schedule," **enforced by a `unique` test on `premiums.policy_id`**. Premium management is a
+  future domain, so if it later ships per-installment rows the test **fails the build**, forcing a switch to
+  `sum(amount)` before serving.
+
+The lesson: an honest proxy is **temporary** — you either confirm the assumption against the source of
+truth, or you encode it as a **tested contract with a tripwire** (a failing test is a better safeguard than
+a disclaimer nobody reads). Tracked as DP-007.
 
 **Where:** the caveat is written into the model column description (`dbt/models/marts/_policy_portfolio.yml`),
 the SQL comments (`dbt/models/marts/policy_portfolio.sql`, `dbt/models/staging/stg_premiums.sql`), and

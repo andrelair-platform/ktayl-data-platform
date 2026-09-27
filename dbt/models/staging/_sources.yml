@@ -36,7 +36,12 @@ sources:
           - name: id
             tests: [unique, not_null]
           - name: policy_id
-            tests: [not_null]
+            # DP-007 interim contract (TRIPWIRE): `unique` asserts ONE premium row per policy = the
+            # recurring *schedule* at its frequency, so annual GWP = amount × cadence is authoritative.
+            # Premium management is a *future* domain (policy-service ports.go: "future premium management
+            # stories"); if it later ships per-installment rows this test FAILS the build → forces the GWP
+            # annualisation to be revisited (switch to sum(amount)) before a wrong figure is served. Issue #7.
+            tests: [not_null, unique]
           - name: amount
             tests: [not_null]
           - name: frequency

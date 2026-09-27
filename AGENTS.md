@@ -24,11 +24,13 @@ The code is the context; this holds only what the code can't cheaply say. See or
 - dbt schema concatenation (fixed via the macro above) — don't remove it or marts move to `business_business`.
 - CNPG bootstrap volume can transiently fault on a node → cordon + recreate on a clean node (deployment side).
 - Money columns are BIGINT **eurocents** (÷100 → EUR) — **CONFIRMED** (DP-007) against the source domain
-  model (`ktayl-policy-service` `internal/domain/{premium,coverage}.go`: `int64 // eurocents`). The one
-  still-open item: **premium annualisation cardinality** — the mart treats each premium row as a recurring
-  *schedule* (`amount × frequency`); if the domain stores one row *per installment* instead, that
-  over-counts. The service has no auto-scheduler (caller-determined), so GWP stays a labelled **proxy**
-  until the Policy domain fixes the cardinality. See issue #7.
+  model (`ktayl-policy-service` `internal/domain/{premium,coverage}.go`: `int64 // eurocents`).
+- GWP annualisation (DP-007, **resolved with a guarded contract**): the mart annualises `amount × cadence`
+  under an **interim contract** — *one premium row per policy = the recurring schedule at its frequency* —
+  which is **enforced by a `unique` test on `premiums.policy_id`**. Premium management is a *future* domain
+  (`policy-service` `ports.go`: "future premium management stories"); if it later ships **per-installment**
+  rows, that test **fails the dbt build** → switch the annualisation to `sum(amount)` before serving. So
+  GWP is authoritative *under a tested assumption with a loud tripwire*, not an open-ended proxy. Issue #7.
 
 ## Doctrine
 Thin vertical slice: one live source → just-enough medallion → one data product. Do NOT build a generic

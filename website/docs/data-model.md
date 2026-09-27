@@ -48,15 +48,20 @@ Money source columns are `BIGINT` **eurocents** — **confirmed** (DP-007) again
 and `Deductible` are `int64 // eurocents`). The `*_eur` columns are the minor-unit values divided by 100
 and rounded to 2 decimals.
 
-### GWP is still a proxy — annualisation cadence
+### GWP annualisation — resolved with a guarded interim contract
 
 `annualised_premium_eur` is the sum of premium amounts multiplied by a cadence multiplier
 (monthly ×12, quarterly ×4, annual ×1), divided by 100. This treats each `premiums` row as a **recurring
-schedule** at its `frequency`. The `premiums` table, however, carries a per-row `due_date`/`paid_at` and
-the service has **no auto-scheduler** (rows are caller-created), so it could equally represent **individual
-installments** — in which case the correct annual GWP is `sum(amount)` within a term and the ×multiplier
-would over-count. The **money units are confirmed**; only this **row-cardinality** decision remains, so
-`annualised_premium_eur` stays labelled a **proxy** (tracked as DP-007) until the Policy domain fixes it.
+schedule** at its `frequency`.
+
+The `premiums` table could in principle also hold **individual installments** (it has a per-row
+`due_date`/`paid_at` and the service has no auto-scheduler). Rather than leave this open, DP-007 fixes an
+**interim contract — *one premium row per policy = the recurring schedule*** — and **enforces it with a
+`unique` test on `premiums.policy_id`**. Premium management is a *future* domain in the policy service, so
+if it later ships per-installment rows the test **fails the dbt build**, forcing the annualisation to be
+switched to `sum(amount)` before any wrong figure is served. GWP is therefore **authoritative under a
+tested assumption with a loud tripwire** — the money units are confirmed eurocents, and the one remaining
+modelling risk is guarded rather than merely disclaimed (tracked as DP-007).
 
 ## dbt schema naming
 
