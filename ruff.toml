@@ -4,6 +4,9 @@
 line-length = 200
 
 [lint]
+# Pin the rule set explicitly (ruff's stable default) so a newer ruff can't silently widen it
+# (isort/simplify/pylint/executable rules are deliberately NOT wanted for this ops script).
+select = ["E4", "E7", "E9", "F"]
 ignore = [
   "E401", # multiple imports on one line
   "E701", # multiple statements on one line (colon)
