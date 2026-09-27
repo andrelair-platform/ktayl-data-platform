@@ -1,0 +1,31 @@
+# AGENTS.md — ktayl-data-platform
+
+Tiny repo-context block (policy / command-catches / non-default conventions / observed pitfalls).
+The code is the context; this holds only what the code can't cheaply say. See org rules in
+`minicloud-gitops/.claude/rules/*` (deployment-vs-code, bmad, gitops, testing).
+
+## Policy
+- **This is a CODE repo.** Deployment config lives in `minicloud-gitops` (`manifests/data-platform/`,
+  `apps/platform/data-platform.yaml`). Never put k8s manifests / Helm / ArgoCD here. (conventions.md
+  *Deployment repo vs code repo*.)
+- Two-layer model: this serves the **ktayl-solution IS**, not Retrieva, not a cert deliverable.
+- Secrets: never commit any. Runtime creds come from Vault `secret/platform/data-platform` via ESO
+  (deployment side) or `VAULT_TOKEN` (the provisioner). Scripts must be secret-free.
+
+## Command-catches
+- The ingest/dbt CronJobs (in gitops) **git-clone this repo** and run `ingest/ingest_policy.sh` /
+  `dbt build` from repo root — so paths are repo-relative, not under a subdir.
+- Metabase provisioner targets the **in-cluster service** when the ingress is SSO-gated:
+  `MB_BASE=http://metabase.data-platform.svc.cluster.local:3000` (the ingress has Authentik forward-auth).
+- dbt: `generate_schema_name` is overridden (macros/) so custom schemas are verbatim → marts land in
+  `business`, staging in `curated` (NOT `business_business`).
+
+## Observed pitfalls
+- dbt schema concatenation (fixed via the macro above) — don't remove it or marts move to `business_business`.
+- CNPG bootstrap volume can transiently fault on a node → cordon + recreate on a clean node (deployment side).
+- Money columns are BIGINT **minor units** (÷100 → EUR); premium annualisation assumes installments —
+  both are **unconfirmed** with the Policy domain, so the GWP figure is a *proxy* until confirmed.
+
+## Doctrine
+Thin vertical slice: one live source → just-enough medallion → one data product. Do NOT build a generic
+connector framework or heavy OLAP (ClickHouse/Kafka) for sources that don't exist yet (need-first gate).
