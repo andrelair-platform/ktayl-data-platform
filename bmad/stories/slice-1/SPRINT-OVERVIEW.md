@@ -17,7 +17,7 @@ One live source (Policy) → medallion → one data product → BI, on a light-f
 | DP-004 | `policy_portfolio` mart (GWP proxy, TIV, counts) | ✅ Done | mart built, 26 tests pass, verified rows |
 | DP-005 | Metabase + Policy Portfolio dashboard (idempotent provisioner) | ✅ Done | dashboard renders; provisioner re-runnable |
 | DP-006 | Authentik forward-auth gate on Metabase | ✅ Done | ingress 302→Authentik; svc ungated |
-| DP-007 | Confirm money/premium semantics with Policy domain | ⬜ Open | GWP promoted from *proxy* to authoritative |
+| DP-007 | Confirm money/premium semantics with Policy domain | ✅ Done | units confirmed eurocents; GWP annualisation authoritative under a `unique(policy_id)` interim contract + tripwire (premium mgmt is a future domain) |
 
 ## Slice 2+ (planned — not started; need-first)
 - DP-101 Second live source when the next domain ships → generalise ingestion from 2–3 real pipelines.
