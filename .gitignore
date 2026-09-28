@@ -4,3 +4,4 @@ dbt/logs/
 __pycache__/
 *.pyc
 .DS_Store
+dbt/.user.yml

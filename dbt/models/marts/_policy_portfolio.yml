@@ -3,8 +3,9 @@ version: 2
 models:
   - name: policy_portfolio
     description: >
-      Data product — one row per policy with premium (scheduled/paid/annualised) and total insured
-      amount (TIV). The seed of the P2 portfolio view and the P1/P3 exposure view. Grain = policy.
+      Data product — one row per policy with the authoritative GWP (Slice 2), premium
+      (scheduled/paid/annualised) and total insured amount (TIV). The seed of the P2 portfolio view
+      and the P1/P3 exposure view. Grain = policy.
     columns:
       - name: policy_id
         tests: [unique, not_null]
@@ -16,6 +17,17 @@ models:
       - name: scheduled_premium_minor
         description: "Sum of premium installment amounts (minor units). ≥ paid."
       - name: annualised_premium_eur
-        description: "GWP proxy — Σ(installment × cadence multiplier) ÷ 100. Confirm minor-unit + installment semantics with the Policy domain before treating as authoritative GWP."
+        description: "GWP PROXY (lineage/comparison only) — Σ(installment × cadence multiplier) ÷ 100 from the policy-service. Superseded by gwp_* where a UW premium exists."
+      - name: underwriting_premium_eur
+        description: "Slice 2 — the AUTHORITATIVE rated technical premium from the underwriting engine (quote.premium_minor ÷ 100). Null for legacy/direct policies not bound via underwriting."
+      - name: rate_table_version
+        description: "Slice 2 — the immutable rate-table version that produced the underwriting premium. Null when not bound via underwriting."
+      - name: bound_via_underwriting
+        description: "Slice 2 — true when the policy has an underwriting binding (its GWP is the authoritative rated premium, not the proxy)."
+      - name: gwp_eur
+        description: "AUTHORITATIVE GWP ÷ 100 — coalesce(underwriting rated premium, annualised proxy). Rated for UW-originated policies, proxy fallback for legacy/direct ones."
+      - name: gwp_minor
+        description: "AUTHORITATIVE GWP (minor units) — coalesce(underwriting_premium_minor, annualised_premium_minor, 0)."
+        tests: [not_null]
       - name: total_insured_amount_eur
         description: "TIV — Σ coverage insured_amount ÷ 100. Exposure seed for accumulation (P1/P3)."
