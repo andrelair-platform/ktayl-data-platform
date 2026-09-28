@@ -15,7 +15,8 @@ connector framework or an OLAP cluster for sources that don't exist yet.
 
 ```
 dbt/       dbt project (dbt_project.yml, profiles.yml, macros/, models/staging, models/marts)
-ingest/    ingest_policy.sh  (live policy DB → analytics.raw, full-refresh COPY)
+ingest/    ingest_policy.sh        (live policy DB → analytics.raw, full-refresh COPY)
+           ingest_underwriting.sh  (Slice 2: live underwriting DB → analytics.raw.uw_*, full-refresh COPY)
 metabase/  provision_dashboard.py  (idempotent, secret-free: creates the analytics DB source + cards + dashboard)
 ```
 
@@ -33,9 +34,31 @@ ktayl-policy-service (LIVE Postgres — the only fully-live business source)
 ```
 
 **Data product `policy_portfolio`** (grain = policy) — grounded on real source columns only:
-- `annualised_premium_eur` — GWP proxy (Σ installment × cadence ÷ 100). *Seeds P2 (margin/portfolio).*
+- `gwp_eur` — **authoritative GWP** (Slice 2): `coalesce(underwriting rated premium, annualised proxy)`. *Seeds P2 (margin/portfolio).*
+- `underwriting_premium_eur`, `rate_table_version`, `bound_via_underwriting` — the authoritative UW-origin columns (null for legacy/direct policies).
+- `annualised_premium_eur` — GWP proxy, kept for lineage/comparison.
 - `total_insured_amount_eur` — TIV. *Seeds P1/P3 (exposure/accumulation).*
 - `scheduled_premium_eur`, `paid_premium_eur`, `coverage_count`, dims: `product_code`, `status`, `inception_year`.
+
+## Slice 2 — underwriting as the authoritative GWP source (closes DP-007)
+
+The **second real live pipeline** (need-first, not a generic connector framework). The underwriting
+rating engine now emits real premiums (`quote.premium_minor`, eurocents) and links them to bound
+policies (`binding.policy_number`), so the GWP proxy is promoted to the **authoritative rated premium**:
+
+```
+ktayl-underwriting (LIVE Postgres — 2nd real source: quote + binding)
+        │  ingest/ingest_underwriting.sh  (full-refresh COPY, explicit column lists)
+        ▼
+   raw.uw_quotes / raw.uw_bindings  →  stg_uw_quotes / stg_uw_bindings (curated)
+        ▼
+   policy_portfolio (business): binding → quote by quote_id, keyed to the policy by policy_number
+        → gwp_eur = coalesce(underwriting_premium_eur, annualised_premium_eur)
+```
+
+- **Join:** `binding.policy_number` = `policy_portfolio.policy_number`; premium via `binding.quote_id → quote.premium_minor`.
+- **Authoritative for** underwriting-originated policies; **proxy fallback** for legacy/direct ones.
+- The old proxy column (`annualised_premium_eur`) is kept, labelled, for lineage/comparison.
 
 ## Stack (light-first, fits the constrained cluster)
 
@@ -51,8 +74,9 @@ ClickHouse/Trino deferred until a real volume/perf need (need-first gate).
 ## Run locally (against a dev analytics Postgres)
 
 ```bash
-# env: ANALYTICS_PG_* + POLICY_PG_*
-sh ingest/ingest_policy.sh                 # land raw.*
+# env: ANALYTICS_PG_* + POLICY_PG_* + UW_PG_*
+sh ingest/ingest_policy.sh                 # land raw.policies/coverages/premiums
+sh ingest/ingest_underwriting.sh           # Slice 2: land raw.uw_quotes/uw_bindings
 cd dbt && dbt deps && dbt build            # staging→marts + tests (build = run + test)
 ```
 

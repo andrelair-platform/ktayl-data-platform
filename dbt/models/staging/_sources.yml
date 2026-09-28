@@ -47,3 +47,23 @@ sources:
           - name: frequency
             tests:
               - accepted_values: { values: ['monthly','quarterly','annual'] }
+
+  # Slice 2 — 2nd live source: the ktayl-underwriting rating engine (quote) + bind record (binding),
+  # landed 1:1 by ingest_underwriting.sh. The authoritative technical premium (quote.premium_minor)
+  # is keyed to a bound policy via binding.policy_number → promotes the GWP proxy in policy_portfolio.
+  - name: underwriting_raw
+    schema: raw
+    description: "1:1 landing of ktayl-underwriting tables (source of truth = the Underwriting/Rating domain)."
+    tables:
+      - name: uw_quotes
+        columns:
+          - name: id
+            tests: [unique, not_null]
+          - name: premium_minor
+            tests: [not_null]
+      - name: uw_bindings
+        columns:
+          - name: quote_id
+            tests: [not_null]
+          - name: policy_number
+            tests: [unique, not_null]
