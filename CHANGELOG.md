@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/andrelair-platform/ktayl-data-platform/compare/ktayl-data-platform-v0.1.2...ktayl-data-platform-v0.1.3) (2026-09-29)
+
+
+### Features
+
+* **DP-101:** Slice 2 — underwriting as 2nd source → authoritative GWP (closes DP-007) ([#18](https://github.com/andrelair-platform/ktayl-data-platform/issues/18)) ([22ea630](https://github.com/andrelair-platform/ktayl-data-platform/commit/22ea630e286e9f65e98a0b43bcae6122a6a93b0c))
+* **governance:** data-quality + PII gates on the served mart ([#22](https://github.com/andrelair-platform/ktayl-data-platform/issues/22)) ([1269d71](https://github.com/andrelair-platform/ktayl-data-platform/commit/1269d71f4c2d51178574a8780c0de69d41f98b8a))
+
 ## [0.1.2](https://github.com/andrelair-platform/ktayl-data-platform/compare/ktayl-data-platform-v0.1.1...ktayl-data-platform-v0.1.2) (2026-09-27)
 
 
