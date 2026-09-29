@@ -106,6 +106,46 @@ silent source schema drift breaking marts, stale features. The gates above exist
   unstructured / ML-volume data. The lakehouse (P6) is the escape hatch, **deferred until needed**.
 - **Heavy managed governance upfront** (DataHub/OpenMetadata, a full Great-Expectations platform) —
   deferred: dbt docs (lineage/catalog) + dbt tests (quality) cover the early need at a fraction of the ops.
+- **ClickHouse (or another OLAP DB server) as the analytics store** — rejected *for now* (reaffirms
+  ADR-1). ClickHouse is a **columnar OLAP server** built for a different workload (sub-second interactive
+  analytics over 100M–B+ rows, high ingest, many concurrent users). Ours is **batch dbt + periodic BI +
+  AI feedstock** at tiny scale (1 policy / 36 quotes). Three reasons against it here: (1) **wrong
+  workload**; (2) **heavy ops** — a stateful cluster to run/HA/back up, and we've already been bitten by
+  a ClickHouse server on this cluster (Langfuse's ClickHouse filled a PVC and dropped all traces); (3)
+  **proprietary MergeTree storage** couples the data to one engine, re-introducing the two-copy problem
+  the lakehouse avoids. It becomes the right call **the day a real real-time, high-volume, high-concurrency
+  analytics workload exists** — and it can then read the *same* Iceberg lake alongside DuckDB/Trino.
+
+## Why these components (storage-vs-engine · transferability · the Databricks/Snowflake map)
+
+**Separate the storage decision from the engine decision.** The durable, expensive-to-change choice is
+*where the data lives and in what format*; the query engine is comparatively swappable.
+- **Storage (pick once):** **open Iceberg tables on MinIO.** Open format → readable by DuckDB, Trino,
+  Spark, Python/pandas, **and** by Snowflake/BigQuery/Databricks later — **no lock-in**, which is what
+  makes the data (and the skills) portable. MinIO is already run + backed up on the platform.
+- **Engine (swap per workload):** **DuckDB** now (embedded library in the dbt job — zero-ops, perfect for
+  batch medallion) → **Trino** when single-node concurrency isn't enough (same Iceberg storage, **no data
+  migration**) → a cloud warehouse or ClickHouse only if a specific workload demands it.
+
+**Transferability is an explicit driver (owner-validated).** The components are the **industry-standard,
+CV-/mission-transferable** ones — **Iceberg · Parquet · dbt · Trino · MLflow** — the same building blocks
+Databricks/Snowflake implement. So operating this stack teaches *how those platforms work under the hood*,
+and the open format means the data + skills port to a real engagement.
+
+**How it maps to the managed platforms (same architecture, not the same product):**
+
+| Role | Databricks (the twin — a lakehouse) | Snowflake (a warehouse, now +Iceberg) | This platform (self-hosted) |
+|---|---|---|---|
+| Storage + format | Delta (open) on S3/ADLS/GCS | proprietary micro-partitions → +Iceberg | **Iceberg on MinIO** |
+| Compute | Spark + Photon (managed, autoscale) | MPP virtual warehouses (autoscale) | **DuckDB → Trino** (open, single-cluster) |
+| Transform | dbt / Spark | dbt / Snowpark | **dbt-core** |
+| Catalog / lineage | Unity Catalog | Horizon / Polaris | dbt docs + Iceberg catalog (later) |
+| ML / AI | MLflow + Feature Store | Snowpark / Cortex | **MLflow (already live)** + LiteLLM/Qdrant (+ Feast later) |
+| Ops / scale / cost | managed, petabyte, SLA, $$$ | managed, petabyte, SLA, $$$ | **self-run, one cluster, ~€0** |
+
+Equivalent in **architecture + skills**, deliberately *not* in scale/ops/cost. Because the data is **open
+Iceberg on object storage**, the escape hatch is real: the same tables can later be read by Trino,
+BigQuery, or actual Databricks/Snowflake with no migration.
 
 ## Links
 
