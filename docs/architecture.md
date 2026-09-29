@@ -39,3 +39,4 @@ Metabase (business schema)                        [serve — Authentik forward-a
 - **ADR-2 Thin vertical slice** per live source — not a generic connector framework.
 - **ADR-3 Code repo (`ktayl-data-platform`) ≠ deploy repo (`minicloud-gitops`)** — conventions.md.
 - **ADR-4 Metabase forward-auth** (not native OIDC — OSS limitation).
+- **ADR-6 Target: AI-ready governed lakehouse** — the direction the slices grow toward (lakehouse evolution of the medallion + the 5-discipline governance spine) + a need-first phased roadmap. Full ADR: [`architecture/adr/ADR-006-ai-ready-governed-lakehouse.md`](architecture/adr/ADR-006-ai-ready-governed-lakehouse.md).
