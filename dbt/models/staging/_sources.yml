@@ -23,6 +23,12 @@ sources:
             tests: [not_null]
           - name: expiry_date
             tests: [not_null]
+          - name: holder_name
+            description: >
+              Policyholder full name — DIRECT-IDENTIFIER PII (GDPR personal data; EU AI Act Art. 10
+              data-governance scope). It lands in raw/curated only and MUST NOT reach the business/gold
+              mart or any model/feature input. Enforced by tests/assert_no_pii_in_serving.sql.
+            meta: { pii: true, classification: "personal-data (GDPR)" }
       - name: coverages
         columns:
           - name: id
