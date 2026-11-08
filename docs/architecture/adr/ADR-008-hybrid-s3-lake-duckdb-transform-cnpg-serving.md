@@ -1,6 +1,6 @@
 # ADR-008 — Hybrid raw data lake: AWS S3 (lake) + DuckDB (transform) + CNPG (serving)
 
-- **Status:** Accepted (architecture). Sub-decision *workload authentication* is OPEN (see Decisions-pending).
+- **Status:** Accepted. Workload-auth sub-decision **resolved 2026-11-08 → Vault AWS secrets engine** (below).
 - **Date:** 2026-11-08
 - **Owner:** SA/TL (André) · **Layer:** ktayl-solution IS (organisational context — not Retrieva / not a cert deliverable)
 - **Board:** Data Platform (#5)
@@ -84,14 +84,23 @@ Catalog/lineage: dbt docs (models) + a version-controlled YAML dataset registry 
     backups, and restore drills separate; the lake enables *dataset replay*, not *database recovery*.
   - **Secrets:** **no permanent AWS keys** in manifests, Git, or OpenTofu state (see Decisions-pending).
 
-## Decisions pending (to confirm before IaC)
+## Workload authentication — RESOLVED (2026-11-08): Vault AWS secrets engine
 
-- **Workload authentication (open).** The DuckDB Job needs scoped S3 read creds without static keys. Two valid
-  no-static-key options:
-  - **Vault AWS secrets engine** (recommended lean) — issues dynamic, short-lived STS creds; **reuses the Vault
-    we already run** + ESO delivery; no new trust-anchor to stand up.
-  - **IAM Roles Anywhere** — X.509-cert-based temporary creds for non-AWS workloads; fits our PKI/cert-manager,
-    but more setup (trust anchor = a CA, profiles, credential helper). (EKS Pod Identity / IRSA is N/A — self-hosted k3s.)
+The DuckDB Job needs scoped S3-read creds **without static keys**. **Decision: the Vault AWS secrets engine**
+(dynamic, short-lived STS creds), delivered to the Job via the Vault agent / ESO — the same spine every other
+secret on the platform already uses.
+
+- **Why:** it gives the no-static-key guarantee with the **least new surface** — reuses the Vault + ESO we
+  operate daily; no new trust infrastructure. Enable the engine + one role mapping (scoped to `s3:GetObject`/
+  `ListBucket` on the data-lake bucket prefix) → the Job assumes it at runtime. No AWS key in k8s, Git, or
+  OpenTofu state.
+- **Accepted caveat:** Vault still holds **one** AWS principal (the role it assumes to mint STS creds) — but it
+  lives **in Vault**, not in the cluster/Git/state, which is precisely Vault's job.
+- **Rejected (for now): IAM Roles Anywhere** — X.509-cert-based STS, the "purer" keyless answer and a nicer
+  zero-trust story, but more setup for a solo builder (register a Trust Anchor = our CA, a Profile, and the
+  `aws_signing_helper` sidecar in the Job) for no practical gain at this scale. (EKS Pod Identity / IRSA is N/A
+  — self-hosted k3s.) **Revisit-when:** we want to drop even Vault's single bootstrap AWS principal, or go
+  fully cert-native.
 
 ## Alternatives considered
 
