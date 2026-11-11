@@ -1,0 +1,50 @@
+version: 2
+
+# MDM conformed dimensions — Slice-2 keystone (ADR-007). These are the join keys every cross-domain
+# fact/KPI (Combined Ratio, RoRAC, accumulation…) will reference. Built only where a REAL source exists
+# today (policy + underwriting); dim_broker / dim_location are deliberately NOT built (no source yet) —
+# see README.md. All in the `business` schema (table-materialised), no PII.
+
+models:
+  - name: dim_policy
+    description: "Conformed Policy dimension (hub). Grain = one policy. Carries customer_sk + lob_sk FKs."
+    columns:
+      - name: policy_sk
+        description: "Surrogate key = md5(policy_number)."
+        tests: [unique, not_null]
+      - name: policy_nk
+        description: "Natural key (policy_number) — crosswalk to source."
+        tests: [unique, not_null]
+      - name: customer_sk
+        description: "FK → dim_customer (interim, name-derived)."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_sk
+      - name: lob_sk
+        description: "FK → dim_lob."
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_lob')
+              field: lob_sk
+
+  - name: dim_customer
+    description: >
+      INTERIM Customer dimension — no authoritative Customer master exists yet (CAP-001 GAP). Derived:
+      customer_sk = md5(normalized holder_name), a pseudonymous join surrogate; the raw name is never
+      served. Replace with a real Customer/MDM source when a CRM domain ships.
+    columns:
+      - name: customer_sk
+        description: "Surrogate key = md5(lower(trim(holder_name))). Pseudonymous; NOT the raw name."
+        tests: [unique, not_null]
+
+  - name: dim_lob
+    description: "Conformed Line-of-Business dimension. Grain = one distinct product_code."
+    columns:
+      - name: lob_sk
+        description: "Surrogate key = md5(product_code)."
+        tests: [unique, not_null]
+      - name: lob_code
+        tests: [unique, not_null]
