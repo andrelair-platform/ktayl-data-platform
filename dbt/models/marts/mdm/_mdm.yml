@@ -19,12 +19,16 @@ models:
         description: "FK → dim_customer (interim, name-derived)."
         tests:
           - not_null
-          - relationships: { to: ref('dim_customer'), field: customer_sk }
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_sk
       - name: lob_sk
         description: "FK → dim_lob."
         tests:
           - not_null
-          - relationships: { to: ref('dim_lob'), field: lob_sk }
+          - relationships:
+              to: ref('dim_lob')
+              field: lob_sk
 
   - name: dim_customer
     description: >
