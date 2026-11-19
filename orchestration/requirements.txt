@@ -1,0 +1,13 @@
+# Dagster code-location image deps (ADR-010). The modern self-hosted stack:
+# dlt (ingest) + dbt (transform) + Dagster (orchestrate, asset-centric) + MLflow (ML tracking/registry).
+dagster==1.9.11
+dagster-webserver==1.9.11
+dagster-dbt==0.25.11
+dagster-postgres==0.25.11
+dbt-postgres==1.9.0
+dlt[postgres,sql_database]==1.4.1
+mlflow==2.18.0
+scikit-learn==1.5.2
+pandas==2.2.3
+psycopg2-binary==2.9.10
+SQLAlchemy==2.0.36

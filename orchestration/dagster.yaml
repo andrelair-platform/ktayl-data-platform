@@ -1,0 +1,5 @@
+# Dagster instance config (ADR-010 proof). SQLite storage under DAGSTER_HOME (ephemeral — fine for the
+# dev proof + headless `dagster asset materialize`). The triggered prod build switches to Postgres storage
+# (dagster-postgres over CNPG) + the K8sRunLauncher. Runs execute in-process (default launcher) here.
+telemetry:
+  enabled: false
