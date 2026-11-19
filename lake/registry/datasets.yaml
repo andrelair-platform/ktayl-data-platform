@@ -1,0 +1,57 @@
+# S3 raw-lake DATASET REGISTRY (ADR-008 governance spine).
+# The version-controlled catalogue of what lands in the lake: one entry per dataset, declaring its S3
+# prefix, format, schema version, data classification (PII/GDPR + EU AI Act Art. 10), retention and
+# serving destination. This is the lake-side half of the governance spine (the dbt tests in dbt/ are the
+# warehouse-side half). Glue/OpenMetadata catalog is deferred (ADR-008) — this YAML is the source of truth.
+#
+# Keyless access: producers assume ktayl-data-lake-writer (s3:PutObject on raw/*); the DuckDB transform
+# assumes ktayl-data-lake-reader (read-only), both via the Vault aws secrets engine — no static keys.
+
+bucket: minicloud-data-lake-625830750465
+region: eu-west-1
+encryption: SSE-S3 (AES256)
+versioning: enabled
+layout: "s3://<bucket>/<layer>/<domain>/<table>/dt=<YYYY-MM-DD>/<table>.parquet" # Hive-style, replayable
+
+datasets:
+  - name: policy.policies
+    layer: raw
+    prefix: raw/policy/policies/
+    format: parquet
+    schema_version: v1
+    source: ktayl-core (policy module) # was ktayl-policy-service; folded into ktayl-core (ADR-014/015)
+    producer: dp-lake-land-policy (lake/producer/land_to_s3.py)
+    classification: personal-data        # holder_name is a direct identifier
+    pii: true                            # GDPR personal data; EU AI Act Art.10 governance scope
+    pii_columns: [holder_name]
+    retention: indefinite-raw            # replayable archive; noncurrent versions expire after 90d
+    destination: analytics.lake.policies # DuckDB transform materialises here (CNPG serving)
+    governance: >
+      holder_name is a DIRECT IDENTIFIER — it may land in raw/ (encrypted, private, access-gated) but MUST
+      NOT reach the served/business layer (enforced warehouse-side by dbt tests/assert_no_pii_in_serving).
+
+  - name: policy.coverages
+    layer: raw
+    prefix: raw/policy/coverages/
+    format: parquet
+    schema_version: v1
+    source: ktayl-core (policy module)
+    producer: dp-lake-land-policy
+    classification: internal
+    pii: false
+    retention: indefinite-raw
+    destination: analytics.lake.coverages
+
+  - name: policy.premiums
+    layer: raw
+    prefix: raw/policy/premiums/
+    format: parquet
+    schema_version: v1
+    source: ktayl-core (policy module)
+    producer: dp-lake-land-policy
+    classification: internal
+    pii: false
+    retention: indefinite-raw
+    destination: analytics.lake.premiums
+
+# _selftest/ is a transient verification prefix (synthetic probe rows) — NOT a governed dataset.

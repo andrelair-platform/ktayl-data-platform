@@ -1,0 +1,14 @@
+version: 2
+
+models:
+  - name: policy_portfolio_lake
+    description: >
+      Policy-portfolio summary materialised from the S3 lake into CNPG (analytics.lake). Grain =
+      product_code × status × inception_year. No PII (holder_name is dropped at the mart layer — it
+      lives only in staging over the raw Parquet).
+    columns:
+      - name: policy_count
+        description: "Policies in this product/status/year cell."
+        tests: [not_null]
+      - name: product_code
+        tests: [not_null]

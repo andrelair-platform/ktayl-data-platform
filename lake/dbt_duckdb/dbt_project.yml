@@ -1,0 +1,19 @@
+name: ktayl_lake
+version: 1.0.0
+config-version: 2
+
+# dbt-duckdb project for the S3-lake OLAP transform (ADR-008). DuckDB reads Parquet from the S3 raw lake
+# (httpfs) and does the columnar modelling; the marts materialise into CNPG (the `pg` attached catalog)
+# — the serving store Metabase reads. staging = ephemeral DuckDB views over S3; marts = CNPG tables.
+profile: ktayl_lake
+
+model-paths: ["models"]
+
+models:
+  ktayl_lake:
+    staging:
+      +materialized: view # ephemeral views in DuckDB over the S3 Parquet
+    marts:
+      +materialized: table
+      +database: pg # the attached CNPG catalog — marts land in Postgres for serving
+      +schema: lake # → analytics.lake.<model> (business/serve layer)
