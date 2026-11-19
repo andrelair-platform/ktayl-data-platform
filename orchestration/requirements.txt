@@ -1,5 +1,6 @@
 # Dagster code-location image deps (ADR-010). The modern self-hosted stack:
 # dlt (ingest) + dbt (transform) + Dagster (orchestrate, asset-centric) + MLflow (ML tracking/registry).
+setuptools>=75  # provides pkg_resources (not bundled in python:3.12-slim; dlt/dbt import it)
 dagster==1.9.11
 dagster-webserver==1.9.11
 dagster-dbt==0.25.11
