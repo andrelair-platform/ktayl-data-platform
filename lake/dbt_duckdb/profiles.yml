@@ -1,0 +1,22 @@
+ktayl_lake:
+  target: prod
+  outputs:
+    prod:
+      type: duckdb
+      path: /tmp/lake.duckdb
+      threads: 2
+      extensions:
+        - httpfs
+        - postgres
+      # S3 read creds are short-lived STS from Vault (exported to env by sts_env.py before dbt runs).
+      settings:
+        s3_region: "{{ env_var('AWS_REGION') }}"
+        s3_endpoint: "s3.{{ env_var('AWS_REGION') }}.amazonaws.com"
+        s3_access_key_id: "{{ env_var('AWS_ACCESS_KEY_ID') }}"
+        s3_secret_access_key: "{{ env_var('AWS_SECRET_ACCESS_KEY') }}"
+        s3_session_token: "{{ env_var('AWS_SESSION_TOKEN') }}"
+      # Attach the CNPG serving DB as catalog `pg` — marts materialise here.
+      attach:
+        - path: "host={{ env_var('ANALYTICS_PG_HOST') }} port=5432 dbname={{ env_var('ANALYTICS_PG_DB') }} user={{ env_var('ANALYTICS_PG_USER') }} password={{ env_var('ANALYTICS_PG_PASSWORD') }}"
+          type: postgres
+          alias: pg
