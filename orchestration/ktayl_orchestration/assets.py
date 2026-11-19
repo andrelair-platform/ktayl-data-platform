@@ -51,7 +51,8 @@ def raw_policy(context: AssetExecutionContext) -> None:
 
 
 # ── 3. ML (depends on the dbt `portfolio` asset) ────────────────────────────────
-@asset(deps=[AssetKey("portfolio")], compute_kind="pandas", group_name="ml")
+# dagster-dbt prefixes the model's custom schema into the asset key → ["dlt_marts","portfolio"].
+@asset(deps=[AssetKey(["dlt_marts", "portfolio"])], compute_kind="pandas", group_name="ml")
 def policy_features(context: AssetExecutionContext) -> pd.DataFrame:
     """Read the dbt portfolio mart into a feature frame (one-hot product_code + year + size)."""
     df = pd.read_sql("select * from dlt_marts.portfolio", create_engine(_analytics_url()))
