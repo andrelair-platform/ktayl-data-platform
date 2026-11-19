@@ -1,10 +1,10 @@
 # ADR-009 — Semantic layer: Cube (self-hosted) over the dbt Semantic Layer; Metabase-native interim
 
-- **Status:** Accepted. Engine chosen (Cube). **Minimal proof stood up on DEV (2026-11-19)** — a
-  single-pod Cube over the gold mart serving the `policy_portfolio` cube; validated the Metabase-native
-  SQL-API path (11 total / 8 active / 0.727 active-ratio). This is a **spike ahead of the trigger**
-  (de-risks the choice), **not** the production build — the triggered prod build (Cube Store + HA + SSO
-  ingress + Metabase wiring + the cross-domain metrics) still waits on the adoption trigger below.
+- **Status:** Accepted — **PRODUCTION-ADOPTED (2026-11-19, right-sized).** Cube runs in the live cluster
+  serving the `policy_portfolio` semantic layer to Metabase via the pg-wire SQL API (validated: 11 total /
+  8 active / 0.727 active-ratio). Kept **single-pod** (right-sized for current volume); **HA (Cube Store +
+  multi-replica)** is deferred to the volume trigger below. The data platform runs in one `data-platform`
+  namespace (platform infra, no dev/prod split) — "production-adopted" = the official running component.
 - **Date:** 2026-11-19
 - **Owner:** SA/TL (André) · **Layer:** ktayl-solution IS (organisational context — not Retrieva / not a cert deliverable)
 - **Board:** Data Platform (#5)

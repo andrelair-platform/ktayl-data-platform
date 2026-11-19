@@ -1,9 +1,11 @@
 # ADR-010 — Ingestion = dlt; Orchestration = Dagster (ML via Dagster assets + MLflow)
 
-- **Status:** Accepted. Engines chosen (dlt + Dagster). **Minimal proof stood up on DEV (2026-11-19)** —
-  a full `dlt → dbt → Dagster → sklearn → MLflow` asset graph materialized end-to-end (RUN_SUCCESS);
-  dlt_raw.policy=11, dlt_marts.portfolio=10, MLflow registered model `ktayl-policy-active-demo` v1.
-  This is a **spike ahead of the trigger** (de-risks the choice), **not** the production build.
+- **Status:** Accepted — **PRODUCTION-ADOPTED (2026-11-19, right-sized).** The full
+  `dlt → dbt → Dagster → sklearn → MLflow` asset graph runs in the live cluster (RUN_SUCCESS:
+  dlt_raw.policy=11, dlt_marts.portfolio=10, MLflow registered model `ktayl-policy-active-demo` v1). Prod
+  touches: **persistent run storage on CNPG** + an **Authentik-SSO ingress** for the lineage UI. Kept
+  **webserver-only + in-process runs** (right-sized); the **daemon + K8sRunLauncher + HA** are deferred to
+  the automation/scale trigger below (no scheduled retrain cadence yet).
 - **Date:** 2026-11-19
 - **Owner:** SA/TL (André) · **Layer:** ktayl-solution IS (organisational context — not Retrieva)
 - **Board:** Data Platform (#5)
