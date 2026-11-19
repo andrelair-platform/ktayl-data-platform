@@ -1,0 +1,44 @@
+# Cube semantic model — Policy Portfolio (ADR-009 minimal proof).
+# Governed metric/dimension definitions over the Data Platform gold mart (CNPG analytics.lake). This is
+# the ONE place GWP-class portfolio metrics are defined; Metabase (via Cube's SQL API) + apps (REST/
+# GraphQL) consume these, so "total policies" / "active ratio" mean the same thing everywhere.
+# Grain of the source mart = (product_code × status × inception_year) with pre-counted policy_count.
+cubes:
+  - name: policy_portfolio
+    sql_table: lake.policy_portfolio_lake
+    description: >
+      Policy portfolio metrics over the gold mart. Measures are additive over the pre-aggregated counts;
+      dimensions are the mart's human-readable keys. The single source of truth for portfolio counts.
+
+    measures:
+      - name: total_policies
+        sql: policy_count
+        type: sum
+        description: "Total policies in the portfolio."
+
+      - name: active_policies
+        sql: active_count
+        type: sum
+        description: "Policies currently in 'active' status."
+
+      - name: active_ratio
+        sql: "{active_policies} / NULLIF({total_policies}, 0)"
+        type: number
+        format: percent
+        description: "Share of the portfolio that is active (active_policies ÷ total_policies)."
+
+    dimensions:
+      - name: product_code
+        sql: product_code
+        type: string
+        description: "Line of business / product code."
+
+      - name: status
+        sql: status
+        type: string
+        description: "Policy lifecycle status (lowercased in the warehouse)."
+
+      - name: inception_year
+        sql: inception_year
+        type: number
+        description: "Year of policy inception (from effective_date)."
