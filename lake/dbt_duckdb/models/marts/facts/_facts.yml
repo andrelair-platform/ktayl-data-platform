@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: fact_policy
+    description: >
+      Conformed Policy registry fact (grain = one policy) on live ktayl-core data, materialised into CNPG
+      (analytics.lake). MDM-keyed (policy/customer/lob/period). The reworked fact_premium — premium/TIV
+      measures deferred to ktayl-core Phase-1b (issue #28). No PII.
+    columns:
+      - name: policy_sk
+        tests:
+          - unique
+          - not_null
+          - relationships: { to: ref('dim_policy'), field: policy_sk }
+      - name: customer_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_customer'), field: customer_sk }
+      - name: lob_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_lob'), field: lob_sk }
+      - name: inception_period_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_period'), field: period_sk }
+      - name: policy_count
+        tests: [not_null]

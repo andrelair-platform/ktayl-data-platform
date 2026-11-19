@@ -1,0 +1,44 @@
+version: 2
+
+# Conformed MDM dimensions — the Slice-2 keystone (ADR-007), built on LIVE ktayl-core policy data via the
+# S3 lake and materialised into CNPG (analytics.lake). These are the join keys every cross-domain
+# fact/KPI will reference. No PII. dim_broker / dim_location are deliberately NOT built (no source yet).
+
+models:
+  - name: dim_policy
+    description: "Conformed Policy hub dimension. Grain = one policy. Carries customer_sk + lob_sk FKs."
+    columns:
+      - name: policy_sk
+        tests: [unique, not_null]
+      - name: policy_nk
+        tests: [unique, not_null]
+      - name: customer_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_customer'), field: customer_sk }
+      - name: lob_sk
+        tests:
+          - not_null
+          - relationships: { to: ref('dim_lob'), field: lob_sk }
+
+  - name: dim_customer
+    description: "INTERIM pseudonymous Customer dimension — customer_sk = md5(normalised holder_name). No raw name."
+    columns:
+      - name: customer_sk
+        tests: [unique, not_null]
+
+  - name: dim_lob
+    description: "Conformed Line-of-Business dimension. Grain = one distinct product_code."
+    columns:
+      - name: lob_sk
+        tests: [unique, not_null]
+      - name: lob_code
+        tests: [unique, not_null]
+
+  - name: dim_period
+    description: "Conformed Period (calendar month) dimension over the live portfolio term range."
+    columns:
+      - name: period_sk
+        tests: [unique, not_null]
+      - name: period_start
+        tests: [not_null]
