@@ -47,12 +47,26 @@ def main() -> int:
     import duckdb  # imported after auth so a cred failure fails fast/cheap
 
     con = duckdb.connect()
-    con.execute("INSTALL postgres; LOAD postgres; INSTALL httpfs; LOAD httpfs;")
+    con.execute("INSTALL httpfs; LOAD httpfs;")
     con.execute(f"SET s3_region='{os.environ['AWS_REGION']}';")
     con.execute(
         f"SET s3_access_key_id='{ak}'; SET s3_secret_access_key='{sk}'; SET s3_session_token='{st}';"
     )
 
+    bucket = os.environ["LAKE_BUCKET"]
+
+    # SELFTEST mode — prove the keyless S3-write path (STS + httpfs) without the source DB.
+    # Writes a synthetic Parquet to raw/_selftest/ and reads it back. Used to verify step 2 in isolation
+    # while the real policy source is being (re)pointed. Set SELFTEST=1.
+    if os.environ.get("SELFTEST") == "1":
+        dest = f"s3://{bucket}/raw/_selftest/dt={datetime.date.today().isoformat()}/probe.parquet"
+        con.execute(f"COPY (SELECT i AS n, i * 2 AS double FROM range(10) t(i)) TO '{dest}' (FORMAT parquet, OVERWRITE_OR_IGNORE)")
+        back = con.execute(f"SELECT count(*), sum(double) FROM read_parquet('{dest}')").fetchone()
+        print(f"[selftest] wrote + read back {dest}: rows={back[0]} sum_double={back[1]}", flush=True)
+        print("[selftest] OK — keyless S3 write/read verified", flush=True)
+        return 0
+
+    con.execute("INSTALL postgres; LOAD postgres;")
     src = (
         f"host={os.environ['POLICY_PG_HOST']} port={os.environ.get('POLICY_PG_PORT', '5432')} "
         f"dbname={os.environ['POLICY_PG_DB']} user={os.environ['POLICY_PG_USER']} "
