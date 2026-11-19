@@ -11,6 +11,29 @@ connector framework or an OLAP cluster for sources that don't exist yet.
 
 > Two-layer model: this is the **ktayl-solution IS** (the insurer). Not Retrieva, not a certification deliverable.
 
+## Architecture & workflow
+
+![Data Platform workflow](docs/architecture/img/data-platform-workflow.png)
+
+*(diagram-as-code — `docs/diagrams/data_platform_workflow.py`, mingrammer `diagrams` + Graphviz)*
+
+The end-to-end modern self-hosted stack (built across ADR-006..010):
+
+| Stage | Tool | What |
+|---|---|---|
+| **Ingest** | **dlt** (ADR-010) + Vault-STS producer (ADR-008) | `sql_table` from the live source (ktayl-core `policy.policy`, underwriting) → schema-inferred load; replaces the hand-written COPY/DuckDB scripts |
+| **Raw lake** | **AWS S3** (eu-west-1, ADR-008) | Parquet, versioned, SSE, keyless via the **Vault AWS secrets engine** (short-lived STS) |
+| **Transform (OLAP)** | **DuckDB** + **dbt** (ADR-006/008) | DuckDB reads Parquet from S3 (httpfs) — storage/compute split; dbt builds `staging → curated → marts` + MDM dims (`dim_policy/customer/lob/period`) + `fact_policy` |
+| **Serving warehouse** | **CloudNativePG** (ADR-008) | gold marts in `analytics.business.* / lake.* / dlt_marts.*` — HA + R2 PITR |
+| **Semantic layer** | **Cube** (ADR-009) | governed metrics defined once; **Metabase consumes it natively via the pg-wire SQL API**; REST/GraphQL for apps/AI |
+| **BI** | **Metabase** | dashboards over the semantic layer, Authentik SSO |
+| **ML** | **scikit-learn + MLflow** (ADR-010) | models trained as Dagster assets, tracked + registered in the platform MLflow |
+| **Orchestration** | **Dagster** (ADR-010) | dlt + dbt + ML as **one asset graph** with lineage, backfills, run observability |
+
+**Why these tools** (verified 2026 landscape): dlt = lightest code-native EL (a library, no standing infra); Dagster = asset-centric, best for dbt-heavy stacks, lighter than Airflow; Cube = the self-hostable semantic layer Metabase consumes natively (vs the dbt Semantic Layer, whose serving API is dbt-Cloud-bound). ML is covered by **Dagster assets + MLflow** — no Prefect needed. Decisions: `docs/architecture/adr/ADR-006..010`.
+
+> **Deployment:** `minicloud-gitops/platform/data/data-platform/` (CNPG, ESO, netpols, lake producer + DuckDB/dbt CronJobs, Metabase, Cube, Dagster, ArgoCD app) git-clones this repo and runs the code.
+
 ## Layout
 
 ```
