@@ -1,0 +1,14 @@
+name: ktayl_orch_demo
+version: 1.0.0
+config-version: 2
+profile: ktayl_orch_demo
+model-paths: ["models"]
+
+# Minimal dbt-postgres project for the Dagster proof (ADR-010): transforms the dlt-landed raw policy
+# (analytics.dlt_raw.policy) into a portfolio summary (analytics.dlt_marts.portfolio). Each model
+# becomes a Dagster asset via dagster-dbt → one asset per model, with lineage into the dlt source + the
+# downstream ML assets.
+models:
+  ktayl_orch_demo:
+    +materialized: table
+    +schema: dlt_marts

@@ -1,0 +1,11 @@
+version: 2
+
+sources:
+  - name: dlt_raw
+    schema: dlt_raw # where dlt lands the policy table (analytics.dlt_raw.policy)
+    tables:
+      - name: policy
+        # Link the dbt source to the Dagster dlt asset `raw_policy` → lineage flows dlt → dbt → ml.
+        meta:
+          dagster:
+            asset_key: ["raw_policy"]

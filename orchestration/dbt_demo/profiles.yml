@@ -1,0 +1,13 @@
+ktayl_orch_demo:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      # env_var defaults let `dbt parse` compile offline at image-build time (no DB connection needed).
+      host: "{{ env_var('ANALYTICS_PG_HOST', 'localhost') }}"
+      port: 5432
+      dbname: "{{ env_var('ANALYTICS_PG_DB', 'analytics') }}"
+      user: "{{ env_var('ANALYTICS_PG_USER', 'analytics') }}"
+      password: "{{ env_var('ANALYTICS_PG_PASSWORD', 'x') }}"
+      schema: dlt_marts
+      threads: 2
