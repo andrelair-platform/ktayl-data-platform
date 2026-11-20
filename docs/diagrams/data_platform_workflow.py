@@ -1,4 +1,4 @@
-"""ktayl Data Platform — system-design / workflow view (diagram-as-code).
+"""minicloud Data Platform — system-design / workflow view (diagram-as-code).
 
 mingrammer `diagrams` + Graphviz. Self-contained; lives with the data-platform docs. Shows the end-to-end
 workflow built across ADR-006/007/008 (lake + warehouse), ADR-009 (Cube semantic layer) and ADR-010
@@ -58,7 +58,7 @@ def orch(label=""):
 
 
 with Diagram(
-    "ktayl Data Platform — workflow  ·  sources → dlt → lake → dbt → CNPG → Cube → BI + ML",
+    "minicloud Data Platform — workflow  ·  sources → dlt → lake → dbt → CNPG → Cube → BI + ML",
     filename=str(OUT / "data-platform-workflow"),
     outformat=["png", "svg"],
     direction="LR",
