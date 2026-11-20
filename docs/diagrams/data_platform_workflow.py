@@ -25,12 +25,13 @@ from diagrams.programming.language import Python
 # ----------------------------------------------------------------- theme (inlined, house style)
 SLATE, CYAN, GREEN, TEXT, MUTED, AMBER = "#0f172a", "#22d3ee", "#34d399", "#e2e8f0", "#94a3b8", "#f59e0b"
 VIOLET = "#a78bfa"  # BI & AI Analytics capability
-BLUE = "#2563eb"    # Data Warehouse (distinct from the Data Lake — different stores, not joined)
+BLUE = "#2563eb"    # Serving Store (the persistent serving tier — NOT "the warehouse" on its own)
 # Cluster border colour = capability CATEGORY (same category → same colour, across stages):
 #   CYAN = Data Ingestion & Pipelines · AMBER = Data LAKE (raw object store) ·
-#   BLUE = Data WAREHOUSE (structured serving store) · GREEN = Transformation & Semantic Layer ·
+#   BLUE = SERVING STORE (persistent serving marts) · GREEN = Transformation & Semantic Layer ·
 #   VIOLET = BI & AI Analytics · MUTED = sources
-# NB: the Lake and the Warehouse are DIFFERENT stores at different stages — distinct label + colour.
+# The data-WAREHOUSE capability is NOT one box: Data Lake (storage) + DuckDB (OLAP engine) +
+# Serving Store (serving) TOGETHER = the warehouse (the lakehouse pattern — storage/compute/serve split).
 ICONS = Path(__file__).resolve().parent / "icons"
 OUT = Path(__file__).resolve().parent.parent / "architecture" / "img"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -65,7 +66,8 @@ def orch(label=""):
 
 
 with Diagram(
-    "minicloud Data Platform — workflow  ·  sources → dlt → lake → dbt → CNPG → Cube → BI + ML",
+    "minicloud Data Platform — workflow  ·  sources → dlt → lake → dbt → CNPG → Cube → BI + ML\n"
+    "Data Lake (storage) + DuckDB (OLAP engine) + Serving Store (serving)  =  the data-warehouse capability (lakehouse)",
     filename=str(OUT / "data-platform-workflow"),
     outformat=["png", "svg"],
     direction="LR",
@@ -92,11 +94,11 @@ with Diagram(
 
     # ---- Transformation & Semantic Layer (transform) ----
     with Cluster("Transformation & Semantic Layer  ·  OLAP transform (storage/compute split)", graph_attr=cl(GREEN)):
-        duck = node(Python, "DuckDB\nhttpfs — reads Parquet")
+        duck = node(Python, "DuckDB\nOLAP engine\n(lakehouse warehouse engine)\nreads Parquet over httpfs")
         dbt = Dbt("dbt (duckdb/postgres)\nstaging → curated → marts\n+ MDM dims + fact_policy")
 
-    # ---- Data WAREHOUSE (structured serving store — NOT the lake) ----
-    with Cluster("Data Warehouse  ·  structured serving store — CloudNativePG", graph_attr=cl(BLUE)):
+    # ---- Serving Store (persistent serving marts — one leg of the warehouse capability, NOT the whole thing) ----
+    with Cluster("Serving Store  ·  gold marts — CloudNativePG (persistent, concurrent, HA)", graph_attr=cl(BLUE)):
         cnpg = PostgreSQL("CNPG gold marts\nbusiness.* · lake.* · dlt_marts.*")
 
     # ---- Transformation & Semantic Layer (semantic) ----
