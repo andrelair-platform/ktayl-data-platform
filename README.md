@@ -1,9 +1,14 @@
 # ktayl-data-platform
 
-Board **#5 (Data Platform)** — the **code** for the ktayl analytical data platform (dbt transforms +
-ingestion + Metabase provisioning). This is a **code repo**; it is **deployed by `minicloud-gitops`**
-(`manifests/data-platform/` — CNPG, ESO, netpols, CronJobs, Metabase, ArgoCD app), which git-clones this
-repo and runs the code. (App source here / deployment config there — the platform's two-repo convention.)
+Board **#5 (Data Platform)** — the **code** for the minicloud analytical data platform (dlt ingestion +
+dbt transforms + Cube model + Dagster orchestration + Metabase provisioning). This is a **code repo**; it
+is **deployed by `minicloud-gitops`** (`platform/data/data-platform/` — CNPG, ESO, netpols, lake CronJobs,
+Cube, Dagster, Metabase, ArgoCD app), which git-clones this repo and runs the code. (App source here /
+deployment config there — the platform's two-repo convention.)
+
+> **Platform vs IS:** the data platform is a **minicloud (Platform) capability** — domain-agnostic. The
+> insurer (**ktayl-solution IS**) is its *current consumer*; the engine is independent of the business.
+> Full map: [central docs → Data Platform](https://andrelair-platform.github.io/minicloud-platform-docs/platform/data-layer/data-layer-overview).
 
 Slice 1 = the **first thin vertical slice** per the [EA blueprint doctrine](https://andrelair-platform.github.io/minicloud-platform-docs/insurance-platform/enterprise-architecture-blueprint):
 **one real live source → just-enough medallion → one data product → BI.** Deliberately *not* a generic
@@ -24,11 +29,15 @@ The end-to-end modern self-hosted stack (built across ADR-006..010):
 | **Ingest** | **dlt** (ADR-010) + Vault-STS producer (ADR-008) | `sql_table` from the live source (ktayl-core `policy.policy`, underwriting) → schema-inferred load; replaces the hand-written COPY/DuckDB scripts |
 | **Raw lake** | **AWS S3** (eu-west-1, ADR-008) | Parquet, versioned, SSE, keyless via the **Vault AWS secrets engine** (short-lived STS) |
 | **Transform (OLAP)** | **DuckDB** + **dbt** (ADR-006/008) | DuckDB reads Parquet from S3 (httpfs) — storage/compute split; dbt builds `staging → curated → marts` + MDM dims (`dim_policy/customer/lob/period`) + `fact_policy` |
-| **Serving warehouse** | **CloudNativePG** (ADR-008) | gold marts in `analytics.business.* / lake.* / dlt_marts.*` — HA + R2 PITR |
+| **Serving store** | **CloudNativePG** (ADR-008) | gold marts in `analytics.business.* / lake.* / dlt_marts.*` — persistent, concurrent, HA + R2 PITR (the serving tier DuckDB materialises into) |
 | **Semantic layer** | **Cube** (ADR-009) | governed metrics defined once; **Metabase consumes it natively via the pg-wire SQL API**; REST/GraphQL for apps/AI |
 | **BI** | **Metabase** | dashboards over the semantic layer, Authentik SSO |
-| **ML** | **scikit-learn + MLflow** (ADR-010) | models trained as Dagster assets, tracked + registered in the platform MLflow |
+| **ML (MLOps)** | **scikit-learn + MLflow** (ADR-010) | MLflow = experiment tracking + model registry. Today a **demonstration** asset (`features→model→eval`) proves the loop — **not yet a production model**; first real use (need-first) = claims-fraud / policy-lapse scoring |
 | **Orchestration** | **Dagster** (ADR-010) | dlt + dbt + ML as **one asset graph** with lineage, backfills, run observability |
+
+> **Lakehouse — the "warehouse" is not one box:** **Data Lake** (S3, storage) + **DuckDB** (OLAP / lakehouse
+> query *engine*) + **Serving Store** (CNPG, serving) **together = the data-warehouse capability**. DuckDB is
+> the engine; CNPG is what it materialises into.
 
 **Why these tools** (verified 2026 landscape): dlt = lightest code-native EL (a library, no standing infra); Dagster = asset-centric, best for dbt-heavy stacks, lighter than Airflow; Cube = the self-hostable semantic layer Metabase consumes natively (vs the dbt Semantic Layer, whose serving API is dbt-Cloud-bound). ML is covered by **Dagster assets + MLflow** — no Prefect needed. Decisions: `docs/architecture/adr/ADR-006..010`.
 
@@ -37,17 +46,22 @@ The end-to-end modern self-hosted stack (built across ADR-006..010):
 ## Layout
 
 ```
-dbt/       dbt project (dbt_project.yml, profiles.yml, macros/, models/staging, models/marts)
-ingest/    ingest_policy.sh        (live policy DB → analytics.raw, full-refresh COPY)
-           ingest_underwriting.sh  (Slice 2: live underwriting DB → analytics.raw.uw_*, full-refresh COPY)
-metabase/  provision_dashboard.py  (idempotent, secret-free: creates the analytics DB source + cards + dashboard)
+lake/           the S3-lake runtime (the LIVE path): producer/ (dlt → S3 Parquet, keyless Vault-STS),
+                transform/ (DuckDB reads S3 → CNPG), dbt_duckdb/ (dbt over DuckDB), registry/ (dataset registry)
+dbt/            dbt project(s) — dbt-postgres medallion (staging/marts) + see lake/dbt_duckdb
+orchestration/  Dagster — ktayl_orchestration/ (dlt + dbt + ML asset graph), Dockerfile, workspace.yaml
+semantic/       Cube semantic model (model/cubes/policy_portfolio.yml)
+metabase/       provision_dashboard.py  (idempotent, secret-free dashboard provisioner)
+ingest/         LEGACY direct-COPY scripts (ingest_policy.sh / ingest_underwriting.sh) — SUPERSEDED by
+                lake/producer (dlt); kept for reference, their CronJobs were retired
 ```
 
 ## What Slice 1 delivers
 
 ```
-ktayl-policy-service (LIVE Postgres — the only fully-live business source)
-        │  ingest/ingest_policy.sh  (full-refresh COPY; CDC later)
+ktayl-core · policy module (LIVE Postgres — the live policy source; formerly ktayl-policy-service,
+             folded into ktayl-core)
+        │  lake/producer (dlt → S3 Parquet; the legacy ingest_policy.sh COPY path is superseded)
         ▼
    raw.*              →  dbt staging (curated schema)  →  dbt marts (business schema)
    policies/coverages/   stg_policies / stg_premiums /     policy_portfolio  ◄── the data product
@@ -83,24 +97,26 @@ ktayl-underwriting (LIVE Postgres — 2nd real source: quote + binding)
 - **Authoritative for** underwriting-originated policies; **proxy fallback** for legacy/direct ones.
 - The old proxy column (`annualised_premium_eur`) is kept, labelled, for lineage/comparison.
 
-## Stack (light-first, fits the constrained cluster)
+## Stack — current vs origin
 
-| Layer | Tool | Note |
-|---|---|---|
-| Storage (medallion) | **Postgres** (CNPG `analytics`), schemas `raw`/`curated`/`business` | own DB (no shared operational DB — ADR-005) |
-| Ingestion | **CronJob** `ingest/ingest_policy.sh` (pg_dump→psql COPY) | full-refresh; CDC (Debezium→NATS) is Slice-2 |
-| Transform | **dbt-postgres** (`dbt/`) — staging→marts + schema tests | run via CronJob after ingest |
-| BI / serve | **Metabase** | Authentik SSO, reads `business` schema |
+The **current** stack is the [Architecture table above](#architecture--workflow) (dlt → S3 lake →
+DuckDB/dbt → CNPG → Cube → Metabase + MLflow, Dagster-orchestrated). The platform **started** as a
+light-first direct-COPY Postgres medallion (`ingest/*.sh` → `raw`/`curated`/`business` schemas +
+dbt-postgres) — that Slice-1 path is **superseded** by the S3-lake runtime (ADR-008), though the
+`business.policy_portfolio` **mart shape is preserved**. **ClickHouse/Trino were evaluated and NOT
+adopted** — DuckDB over the S3 lake instead (sovereign, no standing OLAP cluster; see the central docs
+*Alternatives considered*).
 
-ClickHouse/Trino deferred until a real volume/perf need (need-first gate).
-
-## Run locally (against a dev analytics Postgres)
+## Run locally
 
 ```bash
-# env: ANALYTICS_PG_* + POLICY_PG_* + UW_PG_*
-sh ingest/ingest_policy.sh                 # land raw.policies/coverages/premiums
-sh ingest/ingest_underwriting.sh           # Slice 2: land raw.uw_quotes/uw_bindings
-cd dbt && dbt deps && dbt build            # staging→marts + tests (build = run + test)
+# LIVE path — the S3 lake:
+python lake/producer/land_to_s3.py          # dlt: live source → S3 Parquet (needs Vault-STS env)
+python lake/transform/transform_s3_to_cnpg.py   # DuckDB: S3 → CNPG; then dbt over lake/dbt_duckdb
+
+# LEGACY direct-COPY path (superseded — kept for reference): env ANALYTICS_PG_* + POLICY_PG_* + UW_PG_*
+sh ingest/ingest_policy.sh                   # land raw.policies/coverages/premiums
+cd dbt && dbt deps && dbt build              # staging→marts + tests (build = run + test)
 ```
 
 ## Provision the Metabase dashboard (idempotent, secret-free)
@@ -110,13 +126,17 @@ cd dbt && dbt deps && dbt build            # staging→marts + tests (build = ru
 VAULT_TOKEN=... python3 metabase/provision_dashboard.py
 ```
 
-## Run the pipeline in-cluster (on demand, not just the 02:00/02:30 cron)
+## Run the pipeline in-cluster (on demand, not just the nightly cron)
+
+The **live** path is the S3 lake (dlt → S3 → DuckDB/dbt → CNPG). The old direct-COPY CronJobs
+(`dp-ingest-policy` / `dp-dbt-build`) were **retired**:
 
 ```bash
-kubectl create job -n data-platform dp-ingest-manual --from=cronjob/dp-ingest-policy   # prod → raw
-kubectl create job -n data-platform dp-dbt-manual    --from=cronjob/dp-dbt-build        # raw → staging → business.policy_portfolio
+kubectl create job -n data-platform dp-land-manual      --from=cronjob/dp-lake-land-policy       # source → S3 Parquet (dlt)
+kubectl create job -n data-platform dp-transform-manual --from=cronjob/dp-lake-transform-policy   # S3 → DuckDB/dbt → CNPG
 kubectl exec -n data-platform dp-postgres-1 -- psql -U postgres -d analytics \
-  -c "SELECT * FROM business.policy_portfolio;"                                          # verify
+  -c "SELECT * FROM business.policy_portfolio;"                                                    # verify
+# or run the full Dagster asset graph (dlt → dbt → ML) from the Dagster UI / webserver
 ```
 
 ## Metabase — one-time UI setup (SSO is a follow-up; internal Tailscale-gated for now)
