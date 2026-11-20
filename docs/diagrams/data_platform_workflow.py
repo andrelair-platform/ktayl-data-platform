@@ -24,6 +24,10 @@ from diagrams.programming.language import Python
 
 # ----------------------------------------------------------------- theme (inlined, house style)
 SLATE, CYAN, GREEN, TEXT, MUTED, AMBER = "#0f172a", "#22d3ee", "#34d399", "#e2e8f0", "#94a3b8", "#f59e0b"
+VIOLET = "#a78bfa"  # BI & AI Analytics capability
+# Cluster border colour = capability CATEGORY (same category → same colour, across stages):
+#   CYAN = Data Ingestion & Pipelines · AMBER = Data Lakes & Warehouses ·
+#   GREEN = Transformation & Semantic Layer · VIOLET = BI & AI Analytics · MUTED = sources
 ICONS = Path(__file__).resolve().parent / "icons"
 OUT = Path(__file__).resolve().parent.parent / "architecture" / "img"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -75,31 +79,34 @@ with Diagram(
         core = Server("ktayl-core\npolicy.policy (CNPG)")
         uw = Server("Underwriting\nquote/binding (CNPG)")
 
-    # ---- ingest ----
-    with Cluster("Ingest  ·  dlt (ADR-010)  +  producer (ADR-008)", graph_attr=cl(CYAN)):
+    # ---- Data Ingestion & Pipelines (ingest) ----
+    with Cluster("Data Ingestion & Pipelines  ·  dlt (ADR-010)", graph_attr=cl(CYAN)):
         dlt = node(Python, "dlt pipeline\nsql_table → schema-inferred\n(replaces COPY scripts)")
 
-    # ---- lake ----
-    with Cluster("Raw lake  ·  AWS S3 (eu-west-1)  ·  Vault-STS keyless", graph_attr=cl(AMBER)):
+    # ---- Data Lakes & Warehouses (raw lake) ----
+    with Cluster("Data Lakes & Warehouses  ·  raw lake — AWS S3 (Vault-STS keyless)", graph_attr=cl(AMBER)):
         s3 = S3("S3 raw\nParquet · versioned · SSE")
 
-    # ---- transform ----
-    with Cluster("Transform  ·  OLAP (storage/compute split)", graph_attr=cl(CYAN)):
+    # ---- Transformation & Semantic Layer (transform) ----
+    with Cluster("Transformation & Semantic Layer  ·  OLAP transform (storage/compute split)", graph_attr=cl(GREEN)):
         duck = node(Python, "DuckDB\nhttpfs — reads Parquet")
         dbt = Dbt("dbt (duckdb/postgres)\nstaging → curated → marts\n+ MDM dims + fact_policy")
 
-    # ---- serving warehouse ----
-    with Cluster("Serving  ·  CloudNativePG (analytics)", graph_attr=cl(GREEN)):
+    # ---- Data Lakes & Warehouses (serving warehouse) ----
+    with Cluster("Data Lakes & Warehouses  ·  serving warehouse — CloudNativePG", graph_attr=cl(AMBER)):
         cnpg = PostgreSQL("CNPG gold marts\nbusiness.* · lake.* · dlt_marts.*")
 
-    # ---- semantic + BI + ML ----
-    with Cluster("Semantic + consumption", graph_attr=cl(GREEN)):
-        cube = node(Server, "Cube (ADR-009)\nsemantic layer\nSQL API · REST/GraphQL")
+    # ---- Transformation & Semantic Layer (semantic) ----
+    with Cluster("Transformation & Semantic Layer  ·  Cube (ADR-009)", graph_attr=cl(GREEN)):
+        cube = node(Server, "Cube\nsemantic layer\nSQL API · REST/GraphQL")
+
+    # ---- BI & AI Analytics ----
+    with Cluster("BI & AI Analytics", graph_attr=cl(VIOLET)):
         metabase = Metabase("Metabase\nBI dashboards")
         mlflow = Mlflow("MLflow\ntracking + model registry")
 
-    # ---- orchestration (spans the pipeline) ----
-    with Cluster("Orchestration  ·  Dagster (ADR-010)  ·  asset graph + lineage UI", graph_attr=cl(AMBER)):
+    # ---- Data Ingestion & Pipelines (orchestration, spans the pipeline) ----
+    with Cluster("Data Ingestion & Pipelines  ·  orchestration — Dagster (ADR-010)", graph_attr=cl(CYAN)):
         dagster = Airflow("Dagster\ndlt + dbt + ML as one asset graph")
 
     # ---- data flow (principal) ----
