@@ -25,10 +25,16 @@ jobs:
           python-version: "3.12"
 
       - name: Install linters
-        run: pip install --quiet "ruff==0.15.7" yamllint "dbt-postgres==1.9.*"
+        run: pip install --quiet "ruff==0.15.7" yamllint pyyaml "dbt-postgres==1.9.*"
 
-      - name: ruff (Python provisioner)
-        run: ruff check metabase/
+      - name: ruff (Python — provisioner + catalog generator)
+        run: ruff check metabase/ catalog/
+
+      - name: data catalog drift (regenerate must be a no-op)
+        run: |
+          python3 catalog/gen_catalog.py
+          git diff --exit-code docs/data-catalog.md \
+            || { echo "::error::docs/data-catalog.md is stale — run 'python3 catalog/gen_catalog.py' and commit"; exit 1; }
 
       - name: yamllint (dbt yml)
         run: yamllint -d relaxed dbt/
