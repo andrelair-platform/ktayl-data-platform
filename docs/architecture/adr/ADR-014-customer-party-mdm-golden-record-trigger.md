@@ -61,6 +61,9 @@ None are firing today → **no MDM tooling now**, by design.
 - **Agree the party data contract up front** with whoever builds the Customer/CRM domain — the **grain**
   of "party," the **identifier set** (SIREN/VAT/national-id), and the **party-role model** (policyholder
   vs claimant vs broker vs beneficiary). Settling these before the data lands avoids a large rework.
+  **Done:** the target spec is written — [`../customer-party-data-contract.md`](../customer-party-data-contract.md)
+  (the party grain, required identifiers, role model, per-domain link requirements, and the target
+  golden-record/crosswalk output a source domain must satisfy).
 
 ## Consequences
 
