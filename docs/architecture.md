@@ -19,6 +19,9 @@ Metabase (business schema)                        [serve — Authentik forward-a
 - Source of truth stays the **domain services** (Policy). The platform holds **derived** copies only.
 - `raw.*` = 1:1 landing; `curated` (stg_*) = typed/cleaned; `business.policy_portfolio` = the data product
   (grain = policy: GWP proxy, TIV, premiums, counts). Canonical model: `minicloud-platform-docs` → Canonical Data Model.
+- **ERD (entity model + grain + PII + keys):** [`data-model/README.md`](data-model/README.md) — the raw
+  landing contract + the conformed serving star (MDM dims / `fact_policy` / `policy_portfolio`). Kept in
+  sync with the dbt model contracts (the machine-checked drift gate; dbt-warehouse carve-out, no `tbls`).
 
 ## Deployment (in minicloud-gitops, not here)
 - `manifests/data-platform/`: namespace+quota, CNPG cluster, ESO secrets, netpols, ingest+dbt CronJobs,
@@ -40,3 +43,5 @@ Metabase (business schema)                        [serve — Authentik forward-a
 - **ADR-3 Code repo (`ktayl-data-platform`) ≠ deploy repo (`minicloud-gitops`)** — conventions.md.
 - **ADR-4 Metabase forward-auth** (not native OIDC — OSS limitation).
 - **ADR-6 Target: AI-ready governed lakehouse** — the direction the slices grow toward (lakehouse evolution of the medallion + the 5-discipline governance spine) + a need-first phased roadmap. Full ADR: [`architecture/adr/ADR-006-ai-ready-governed-lakehouse.md`](architecture/adr/ADR-006-ai-ready-governed-lakehouse.md).
+- **ADR-7..11** (full set in [`architecture/adr/`](architecture/adr/)): gating-foundation · hybrid S3-lake/DuckDB/CNPG · Cube semantic layer · Dagster+dlt orchestration · the deferred-capability trigger register.
+- **ADR-12 Lakehouse table format: Parquet now, Iceberg on trigger** — names the plain-Parquet→Iceberg gap as a *triggered* decision (CDC / time-travel / schema-evolution / scale-out engine), so "lakehouse pattern vs transactional lakehouse" reads as intent. Full ADR: [`architecture/adr/ADR-012-lakehouse-table-format-iceberg-trigger.md`](architecture/adr/ADR-012-lakehouse-table-format-iceberg-trigger.md).
