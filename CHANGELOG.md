@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.4](https://github.com/andrelair-platform/ktayl-data-platform/compare/ktayl-data-platform-v0.1.3...ktayl-data-platform-v0.1.4) (2026-11-22)
+
+
+### Features
+
+* **catalog:** generated data catalog + PII register; ADR-013/014 (catalog, MDM) ([#42](https://github.com/andrelair-platform/ktayl-data-platform/issues/42)) ([efcdde5](https://github.com/andrelair-platform/ktayl-data-platform/commit/efcdde543aae08516a90aa8a4fb29932153d03b9))
+* **dataops:** close silent-failure gap (ADR-015) — not-empty test + alert ([#47](https://github.com/andrelair-platform/ktayl-data-platform/issues/47)) ([fad8426](https://github.com/andrelair-platform/ktayl-data-platform/commit/fad84262a9429c4a4806adad2791abdc57d71cd9))
+
 ## [0.1.3](https://github.com/andrelair-platform/ktayl-data-platform/compare/ktayl-data-platform-v0.1.2...ktayl-data-platform-v0.1.3) (2026-11-20)
 
 
